@@ -152,6 +152,16 @@ nav button{border:0;background:none;color:#737b86;font-size:9px}nav button.on{co
 .correctionDetail{margin-top:12px;padding:12px;border:1px solid #303943;border-radius:10px}
 .diagGrid{display:grid;grid-template-columns:1fr auto;gap:5px 10px;margin:10px 0}
 .diagGrid b{text-align:right}
+.mapRecommend{padding:14px}
+.mapRecRow{width:100%;display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start;text-align:left;background:#14181d;color:inherit;border:1px solid #293039;border-radius:14px;padding:13px 11px;margin:9px 0}
+.mapRecTop{border-color:#778132;background:#1b2017}
+.mapRank{display:flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:50%;background:#252b32;font-weight:800;font-size:12px}
+.mapRecBody{min-width:0;display:block}.mapRecName{display:block;font-size:16px;line-height:1.3}.mapRecTags{display:flex;gap:5px;flex-wrap:wrap;margin:7px 0}
+.mapRecTags i{font-style:normal;font-size:10px;padding:4px 7px;border-radius:999px;background:#293021;color:#d8df7a}
+.mapRecReason{display:block;font-size:12px;line-height:1.45;color:#d2d7dd;margin-top:4px}.mapRecStats{display:block;font-size:10px;line-height:1.4;color:#89929c;margin-top:6px}
+.mapRecLevel{white-space:nowrap;font-size:11px;padding:5px 7px;border-radius:999px;background:#252b32;color:#e5e9ed}
+.mapRecTop .mapRecLevel{background:#3a421e;color:#e4ec84}.scoreDetails{margin-top:10px}
+@media(max-width:430px){.mapRecRow{grid-template-columns:26px 1fr}.mapRecLevel{grid-column:2;justify-self:start}.mapRecName{font-size:15px}}
 
 </style>
 <link rel="manifest" href="./manifest.webmanifest">
@@ -224,6 +234,41 @@ nav button{border:0;background:none;color:#737b86;font-size:9px}nav button.on{co
 
 <script>
 const MAPS={'Customs':'세관','Factory':'공장','Woods':'우드','Shoreline':'쇼어라인','Interchange':'인터체인지','Reserve':'리저브','Lighthouse':'라이트하우스','The Lab':'연구소','Streets of Tarkov':'시내','Ground Zero':'그라운드 제로','Terminal':'터미널','The Labyrinth':'미궁','Icebreaker':'아이스브레이커'};
+const MAP_ID_TO_EN={
+ '55f2d3fd4bdc2d5f408b4567':'Factory',
+ '59fc81d786f774390775787e':'Factory',
+ '56f40101d2720b2a4d8b45d6':'Customs',
+ '5704e3c2d2720bac5b8b4567':'Woods',
+ '5704e4dad2720bb55b8b4567':'Lighthouse',
+ '5704e554d2720bac5b8b456e':'Shoreline',
+ '5704e5fad2720bc05b8b4567':'Reserve',
+ '5714dbc024597771384a510d':'Interchange',
+ '5b0fc42d86f7744a585f9105':'The Lab',
+ '5714dc692459777137212e12':'Streets of Tarkov',
+ '653e6760052c01c1c805532f':'Ground Zero',
+ '65b8d6f5cdde2479cb2a3125':'Ground Zero',
+ '6733700029c367a3d40b02af':'The Labyrinth'
+};
+function canonicalMapName(v){
+ const obj=v&&typeof v==='object'?v:null;
+ const raw=String(obj?.name??obj?.normalizedName??v??'').trim();
+ const id=String(obj?.id??raw).trim();
+ if(MAP_ID_TO_EN[id])return MAP_ID_TO_EN[id];
+ const cleaned=raw.replace(/\s+name$/i,'').trim();
+ if(MAP_ID_TO_EN[cleaned])return MAP_ID_TO_EN[cleaned];
+ const norm=cleaned.toLowerCase().replace(/[^a-z0-9가-힣]/g,'');
+ for(const [en,ko] of Object.entries(MAPS)){
+   if(norm===en.toLowerCase().replace(/[^a-z0-9]/g,'')||norm===ko.toLowerCase().replace(/[^a-z0-9가-힣]/g,''))return en;
+ }
+ if(norm==='factory4day'||norm==='factory4night')return 'Factory';
+ if(norm==='bigmap')return 'Customs';
+ if(norm==='rezervbase')return 'Reserve';
+ if(norm==='laboratory')return 'The Lab';
+ if(norm==='tarkovstreets')return 'Streets of Tarkov';
+ if(norm==='sandbox'||norm==='sandboxhigh'||norm==='groundzero21')return 'Ground Zero';
+ if(/^[a-f0-9]{24}$/i.test(cleaned))return 'Unknown';
+ return cleaned||'Unknown';
+}
 const DATA_URLS=['https://json.tarkov.dev/pve/tasks','https://tarkovtracker.org/api/tarkov/tasks-core?lang=ko&gameMode=pve'];
 let quests=[],lastPage='home',filterTrader='전체';
 const PROFILE_KEY='eft_profile_main';
@@ -292,7 +337,8 @@ function setPrestige(){setProfile()}
 function saveProfileForm(){const lv=Math.max(1,Number(document.getElementById('levelInput').value||1));const pr=Math.max(0,Number(document.getElementById('prestigeInput').value||0));const p=profile(),k=String(pr);p.active=pr;if(!p.runs[k])p.runs[k]={level:lv,completed:[]};else p.runs[k].level=lv;saveProfile(p);refreshAll();go('home')}
 function resetCurrentRun(){if(confirm(`Prestige ${prestige()} 회차의 완료 체크를 모두 초기화할까요?`)){const p=profile();p.runs[String(p.active)].completed=[];saveProfile(p);refreshAll();}}
 function refreshAll(){renderHome();renderNow();if(document.getElementById('profilePage').classList.contains('active'))renderProfile();if(document.getElementById('steps').classList.contains('active'))renderSteps();if(document.getElementById('raid').classList.contains('active'))renderRaid();renderAll();renderRaidExecutor()}
-function mapName(x){return MAPS[x]||x||'미지정'}
+function mapName(x){const en=canonicalMapName(x);return en==='Unknown'?'맵 미확인':(MAPS[en]||en||'미지정')}
+function mapDisplayName(x){const en=canonicalMapName(x),ko=mapName(en);return en==='Unknown'?ko:(ko===en?ko:`${ko} (${en})`)}
 function qMap(q){if(Array.isArray(q.map))return q.map.map(x=>mapName(x?.name||x)).filter(Boolean);if(q.map?.name)return [mapName(q.map.name)];if(typeof q.map==='string')return [mapName(q.map)];let m=new Set();(q.objectives||[]).forEach(o=>(o.maps||o.locations||[]).forEach(x=>m.add(mapName(x.name||x.map?.name||x.map||x.normalizedName))));return [...m].filter(Boolean)}
 function reqs(q){return q.taskRequirements||q.require?.quests||[]}
 function reqId(r){return r.task?.id||r.quest?.id||r.id||r}
@@ -734,7 +780,7 @@ function renderAdvancedHome(){
 function roadmapPanel(){
  const r=progressionRoadmap(),top=r.rank[0],now=r.now.slice(0,6);
  return `<div class="card roadmap"><h3>🚀 진행 로드맵</h3>
- <div class="roadStep"><b>1 · 지금</b><span>${top?`${esc(top.map)} 추천 · ${top.r.qn}개 퀘스트 동시 진행`:'추천 가능한 맵을 확인 중'}</span></div>
+ <div class="roadStep"><b>1 · 지금</b><span>${top?`${esc(mapDisplayName(top.map))} 추천 · ${top.r.qn}개 퀘스트 동시 진행`:'추천 가능한 맵을 확인 중'}</span></div>
  ${now.length?`<div class="roadQuests">${now.map(q=>`<span class="pill">${dataConfidenceBadge(q)} ${esc(q.name)}</span>`).join('')}</div>`:''}
  <div class="roadArrow">↓</div>
  <div class="roadStep"><b>2 · 완료 후</b><span>${r.unlock.length?`${r.unlock.length}개 후속 퀘스트 후보`:'현재 데이터에서 직접 후속 후보 없음'}</span></div>
@@ -1323,7 +1369,7 @@ function auditTraderLevels(){
 }
 
 const MAP_ORDER=['Ground Zero','Customs','Woods','Factory','Interchange','Shoreline','Reserve','Streets of Tarkov','Lighthouse','The Lab','Terminal'];
-function normMap(n){return String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+function normMap(n){const c=canonicalMapName(n);return String(c==='Unknown'?(n?.id||n?.name||n||''):c).toLowerCase().replace(/[^a-z0-9]/g,'')}
 function questMaps(q){const x=new Set(prepData(q).maps);return [...x]}
 function objectiveLabel(o,i){return esc(o?.description||o?.name||`목표 ${i+1}`)}
 
@@ -1561,14 +1607,48 @@ function scoreReason(map,b){
  if(r.items)bits.push(`준비 아이템 ${r.items}개`);
  return bits.join(' · ');
 }
+function recommendationLevel(score,top){
+ const ratio=top?score/top:0;
+ return ratio>=0.85?'매우 추천':ratio>=0.62?'추천':'보통';
+}
+function recommendationTags(r){
+ const tags=[];
+ if(r.qn>=8)tags.push('퀘스트 많음');
+ if(r.unlock?.direct>=2)tags.push('후속 해금 많음');
+ else if(r.unlock?.direct===1)tags.push('후속 해금');
+ if((r.keys+r.items)<=5)tags.push('준비 부담 적음');
+ if(r.keys)tags.push(`키 ${r.keys}개 필요`);
+ if(r.trader?.total)tags.push('상인 진행');
+ if(r.trust?.quality<80)tags.push('데이터 확인 필요');
+ return tags.slice(0,4);
+}
+function recommendationReasonFriendly(r){
+ if(r.qn>=12)return '한 번의 레이드에서 여러 퀘스트를 같이 진행하기 가장 좋습니다.';
+ if(r.unlock?.direct>=2)return '완료 후 이어지는 후속 퀘스트가 많아 진행 효율이 높습니다.';
+ if((r.keys+r.items)<=4&&r.qn>=4)return '준비 부담이 적고 여러 목표를 함께 처리하기 좋습니다.';
+ if(r.keys)return '진행 효율은 높지만 출발 전에 필요한 키를 먼저 확인하세요.';
+ return '현재 레벨과 선행 조건 기준으로 진행 가치가 높은 맵입니다.';
+}
 function recommendationBoard(){
  const rows=recommendationRanking().slice(0,5);
- if(!rows.length)return `<div class="card"><h3>🏆 추천 맵 점수</h3><div class="small">현재 자동 추천 가능한 퀘스트가 없습니다.</div></div>`;
- return `<div class="card"><h3>🏆 지금 갈 맵 TOP ${rows.length}</h3>
- <div class="small">점수는 동시 퀘스트·목표·동선 품질·후속 퀘스트·상인 진행 가치를 보상하고 키/준비물 부담과 과도한 목표 수를 감점합니다.</div>
- ${rows.map((x,i)=>`<div class="scoreRow ${i===0?'scoreTop':''}" onclick="setFocusedMap('${String(x.map).replaceAll("'","\\'")}')">
- <span class="rank">${i+1}</span><div><b>${esc(x.map)}</b><div class="small">${scoreReason(x.map,x.b)}</div></div><strong>${x.r.score}</strong></div>`).join('')}
- </div>`;
+ if(!rows.length)return `<div class="card"><h3>🏆 지금 갈 맵</h3><div class="small">현재 바로 추천할 수 있는 맵이 없습니다. 레벨·선행 퀘스트·상인 조건을 확인하세요.</div></div>`;
+ const top=rows[0]?.r?.score||1;
+ return `<div class="card mapRecommend"><h3>🏆 지금 갈 맵 TOP ${rows.length}</h3>
+ <div class="small">복잡한 내부 점수 대신, 지금 왜 이 맵을 가면 좋은지 중심으로 보여줍니다.</div>
+ ${rows.map((x,i)=>`<button class="mapRecRow ${i===0?'mapRecTop':''}" onclick="setFocusedMap('${String(x.map).replaceAll("'","\\'")}')">
+   <span class="mapRank">${i+1}</span>
+   <span class="mapRecBody">
+     <b class="mapRecName">${esc(mapDisplayName(x.map))}</b>
+     <span class="mapRecTags">${recommendationTags(x.r).map(t=>`<i>${esc(t)}</i>`).join('')}</span>
+     <span class="mapRecReason">${esc(recommendationReasonFriendly(x.r))}</span>
+     <span class="mapRecStats">동시 퀘스트 ${x.r.qn} · 목표 ${x.r.gn} · 후속 ${x.r.unlock?.direct||0} · 준비물 ${x.r.items}개${x.r.keys?` · 키 ${x.r.keys}개`:''}</span>
+   </span>
+   <strong class="mapRecLevel">${recommendationLevel(x.r.score,top)}</strong>
+ </button>`).join('')}
+ <details class="scoreDetails"><summary>추천 계산 상세 보기</summary>
+ <div class="small">내부 점수는 추천 순서를 계산하는 용도이며 실제 게임 난이도나 수익을 의미하지 않습니다.</div>
+ ${rows.map((x,i)=>`<div class="small">${i+1}. ${esc(mapDisplayName(x.map))} · 내부 점수 ${x.r.score}</div>`).join('')}
+ </details></div>`;
 }
 function scoreBreakdownPanel(map,b){
  const r=recommendationScore(map,b),p=r.parts;
@@ -2180,7 +2260,7 @@ function readinessPanel(){
  if(!rows.length)return '';
  return `<div class="card"><h3>🧪 맵별 내비게이션 준비도</h3>
  <div class="small">퀘스트 목표의 좌표·위치명·설명 데이터 충실도를 기준으로 계산합니다. 게임 난이도 점수가 아닙니다.</div>
- ${rows.slice(0,12).map(r=>`<div class="row"><span><b>${r.grade}</b> ${r.map}</span><span class="small">${r.score}% · 좌표 ${r.coords}/${r.total} · 위치명 ${r.locations}/${r.total}</span></div>`).join('')}
+ ${rows.slice(0,12).map(r=>`<div class="row"><span><b>${r.grade}</b> ${esc(mapDisplayName(r.map))}</span><span class="small">${r.score}% · 좌표 ${r.coords}/${r.total} · 위치명 ${r.locations}/${r.total}</span></div>`).join('')}
  </div>`;
 }
 function dataQualityPanel(map,b){
@@ -2188,7 +2268,7 @@ function dataQualityPanel(map,b){
  b.goals.forEach(x=>counts[objectiveDataQuality(x.o).grade]++);
  const r=mapReadiness(map);
  return `<div class="card"><h3>🔎 현재 루트 데이터 품질</h3>
- <div><b>${map} ${r.grade}등급 · ${r.score}%</b></div>
+ <div><b>${esc(mapDisplayName(map))} ${r.grade}등급 · ${r.score}%</b></div>
  <div class="small">현재 레이드 목표: A ${counts.A} · B ${counts.B} · C ${counts.C} · D ${counts.D}</div>
  <div class="small" style="margin-top:6px">A/B 목표는 위치 정보가 비교적 충분합니다. C/D 목표는 설명을 우선 확인하세요.</div></div>`;
 }
@@ -2201,7 +2281,7 @@ function raidSummary(map,b){
  const risk=b.keys.length>=3?'키 준비 확인':b.goals.length>=6?'목표가 많음':'일반';
  return `<div class="card"><h3>⚡ 출격 요약</h3>
  <div class="grid">
-  <div><b>${map}</b><div class="small">추천 맵</div></div>
+  <div><b>${esc(mapDisplayName(map))}</b><div class="small">추천 맵</div></div>
   <div><b>${b.qs.length}개</b><div class="small">동시 퀘스트</div></div>
   <div><b>${b.goals.length}개</b><div class="small">목표</div></div>
   <div><b>${p.pct}%</b><div class="small">진행</div></div>
@@ -2242,7 +2322,7 @@ function renderRaidExecutor(){
  const maps=[...new Set(availableIncomplete().flatMap(questMaps))].sort((a,b)=>bundleScore(b)-bundleScore(a));
  const map=raidMap();const b=mapBundle(map);
  if(!maps.length){el.innerHTML=`<div class="card"><h3>🧭 이번 레이드</h3><div class="small">현재 조건에서 진행 가능한 맵 퀘스트가 없습니다. PMC 레벨·상인 LL·선행 퀘스트를 확인하세요.</div></div>`;return}
- const select=`<select onchange="setRaidMap(this.value)">${maps.map(m=>`<option ${normMap(m)===normMap(map)?'selected':''}>${m}</option>`).join('')}</select>`;
+ const select=`<select onchange="setRaidMap(this.value)">${maps.map(m=>`<option ${normMap(m)===normMap(map)?'selected':''}>${esc(mapDisplayName(m))}</option>`).join('')}</select>`;
  const prep=[...b.keys.map(x=>`🔑 ${x.name}${x.count>1?' ×'+x.count:''}`),...b.items.map(x=>`📦 ${x.name}${x.count>1?' ×'+x.count:''}${x.fir?' · FIR':''}`)];
  const goals=b.goals.map((x,i)=>{
    const id=x.o?.id||String(x.i),checked=isRaidChecked(map,x.q.id,id);
@@ -2262,7 +2342,15 @@ function renderRaidExecutor(){
 }
 
 
-function renderReadiness(){const el=document.getElementById('readinessBox');if(el)el.innerHTML=beginnerModePanel()+levelJourneyPanel()+roadmapPanel()+completionDashboard()+correctionQueuePanel()+recommendationBoard()+sourceCorrectnessPanel()+repairImpactPanel()+repairPolicyPanel()+runtimeStabilityPanel()+correctnessPanel()+objectiveTypePanel()+advancedHomePanels()+focusPanel()+requirementDiagnostics()+sourcePolicyPanel()+verificationCoveragePanel()+readinessPanel()}
+function developerDiagnosticsPanel(){
+ return `<details class="card advancedTools" ontoggle="if(this.open)renderDeveloperDiagnostics()"><summary>🔧 데이터/진단 정보 · 고급</summary><div id="devDiagBody" class="small">필요할 때만 불러옵니다.</div></details>`;
+}
+function renderDeveloperDiagnostics(){
+ const el=document.getElementById('devDiagBody');if(!el||el.dataset.loaded==='1')return;
+ el.dataset.loaded='1';
+ el.innerHTML=completionDashboard()+correctionQueuePanel()+sourceCorrectnessPanel()+repairImpactPanel()+repairPolicyPanel()+runtimeStabilityPanel()+correctnessPanel()+objectiveTypePanel()+advancedHomePanels()+requirementDiagnostics()+sourcePolicyPanel()+verificationCoveragePanel();
+}
+function renderReadiness(){const el=document.getElementById('readinessBox');if(el)el.innerHTML=beginnerModePanel()+levelJourneyPanel()+roadmapPanel()+recommendationBoard()+focusPanel()+readinessPanel()+developerDiagnosticsPanel()}
 
 function renderProfile(){
  const el=document.getElementById('profileBox');if(!el)return;
@@ -2294,7 +2382,7 @@ function renderMaps(){
  quests.forEach(q=>questMaps(q).forEach(x=>m[x]=(m[x]||0)+1));
  document.getElementById('mapGrid').innerHTML=Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
    const safe=String(k).replaceAll("'","\\'");
-   return `<div class="card" onclick="go('raid','${safe}')"><div class="ico">🗺️</div><b>${esc(mapName(k))}</b><span>${v}개 퀘스트</span></div>`;
+   return `<div class="card" onclick="go('raid','${safe}')"><div class="ico">🗺️</div><b>${esc(mapDisplayName(k))}</b><span>${v}개 퀘스트</span></div>`;
  }).join('');
 }
 function renderTraderPage(){const m={};quests.forEach(q=>{let t=q.trader?.name||q.trader||'기타';m[t]=(m[t]||0)+1});document.getElementById('traderGrid').innerHTML=Object.entries(m).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="card" onclick="filterTrader='${k}';go('all')"><div class="ico">👤</div><b >${esc(k)}</b><span>${v}개</span></div>`).join('')}
@@ -2302,7 +2390,7 @@ function initRaid(preselect=''){
  const sel=document.getElementById('raidMap');if(!sel)return;
  const cur=preselect||localStorage.getItem('eft_raid_map')||sel.value;
  const maps=[...new Set(quests.flatMap(q=>questMaps(q)))].filter(Boolean).sort();
- sel.innerHTML='<option value="">맵 선택</option>'+maps.map(m=>`<option value="${esc(m)}">${esc(mapName(m))}</option>`).join('');
+ sel.innerHTML='<option value="">맵 선택</option>'+maps.map(m=>`<option value="${esc(m)}">${esc(mapDisplayName(m))}</option>`).join('');
  if(cur&&maps.includes(cur))sel.value=cur;
  renderRaid();
 }
@@ -2310,7 +2398,7 @@ function renderRaid(){
  const m=document.getElementById('raidMap').value;
  if(!m){document.getElementById('raidList').innerHTML='<div class="empty">먼저 맵을 선택하세요.</div>';return}
  const a=quests.filter(q=>available(q)&&questMaps(q).some(x=>normMap(x)===normMap(m)));
- const display=mapName(m);
+ const display=mapDisplayName(m);
  let html=`<div class="box"><h3>🔥 ${esc(display)} 한 판 묶음</h3><p>현재 가능한 퀘스트 중 <b>${esc(display)}</b>에서 동시에 진행할 수 있는 목표입니다.</p><p><b>${a.length}개</b> 퀘스트 · 레이드 전에 아래 준비물을 확인하세요.</p></div>`;
  const keys=[...new Set(a.flatMap(q=>(q.neededKeys||q.keys||[]).map(x=>x?.name||x?.shortName||x).filter(Boolean)))];
  if(keys.length)html+=`<div class="box"><h3>🔑 필요한 열쇠</h3><p>${keys.slice(0,20).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</p></div>`;
@@ -2340,7 +2428,7 @@ function toggleDone(id){
  saveProfile(p);refreshAll();openQuest(id);
 }
 
-const APP_VERSION='FINAL-1.0';
+const APP_VERSION='FINAL-1.1';
 
 function esc(v){
  return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2693,6 +2781,14 @@ function refObject(v,index){
  const hit=index.get(id);
  return hit?{id,name:hit.name||hit.shortName||id}: {id,name:id};
 }
+function mapRefObject(v,index){
+ const obj=v&&typeof v==='object'?v:null;
+ const id=String(obj?.id??v??'');
+ const hit=index.get(id);
+ const source=obj||hit||{};
+ const en=MAP_ID_TO_EN[id]||canonicalMapName(source.normalizedName||source.name||id);
+ return {...source,id:id||source.id,name:en==='Unknown'?(source.name||id):en};
+}
 async function fetchStaticPveAdapted(){
  const [taskData,mapData,traderData]=await Promise.all([
   fetchTranslatedStatic('tasks'),
@@ -2705,12 +2801,12 @@ async function fetchStaticPveAdapted(){
  const taskIx=new Map(tasks.filter(x=>x?.id).map(x=>[String(x.id),x]));
  const out=tasks.map(q=>{
   const x={...q};
-  if(x.map!=null)x.map=refObject(x.map,mapIx);
+  if(x.map!=null)x.map=mapRefObject(x.map,mapIx);
   if(x.trader!=null)x.trader=refObject(x.trader,traderIx);
   if(Array.isArray(x.objectives))x.objectives=x.objectives.map(o=>{
    const y={...o};
-   if(Array.isArray(y.maps))y.maps=y.maps.map(m=>refObject(m,mapIx));
-   if(y.map!=null)y.map=refObject(y.map,mapIx);
+   if(Array.isArray(y.maps))y.maps=y.maps.map(m=>mapRefObject(m,mapIx));
+   if(y.map!=null)y.map=mapRefObject(y.map,mapIx);
    return y;
   });
   if(Array.isArray(x.taskRequirements))x.taskRequirements=x.taskRequirements.map(r=>{
